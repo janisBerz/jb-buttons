@@ -1,0 +1,37 @@
+steps:
+  - task: DownloadPipelineArtifact@2
+
+  - task: AzureResourceGroupDeployment@2
+    displayName: 'Provision Azure Logic App'
+    inputs:
+      azureSubscription: $(azureSubscriptionName)
+      resourceGroupName: $(resourceGroupName)
+      location: 'West Europe'
+      csmFile: $(Pipeline.Workspace)/templates/sendEmailLogicApp/sendEmailLogicApp.json
+      csmParametersFile: $(Pipeline.Workspace)/templates/sendEmailLogicApp/sendEmailLogicApp.parameters.json
+      overrideParameters: '-workflowsName $(resourcename)'
+
+  - task: keesschollaart.arm-outputs.arm-outputs.ARM Outputs@5
+    displayName: 'ARM Outputs'
+    inputs:
+      ConnectedServiceNameARM: $(azureSubscriptionName)
+      resourceGroupName: $(resourceGroupName)
+
+  - task: AzureResourceGroupDeployment@2
+    displayName: 'Provision Azure App Service'
+    inputs:
+      azureSubscription: $(azureSubscriptionName)
+      resourceGroupName: $(resourceGroupName)
+      location: 'West Europe'
+      csmFile: $(Pipeline.Workspace)/templates/AzureAppServicePlan/AzureAppServicePlan.json
+      csmParametersFile: $(Pipeline.Workspace)/templates/AzureAppServicePlan/AzureAppServicePlan.parameters.json
+      overrideParameters: '-webAppName $(resourcename)'
+
+  - task: AzureRmWebAppDeployment@4
+    displayName: 'Azure App Service Deploy'
+    inputs:
+      appType: webApp
+      ConnectedServiceName: $(azureSubscriptionName)
+      WebAppName: $(WebAppName)
+      package: $(Pipeline.Workspace)/webApp/*.zip
+      AppSettings: -callbackUrl $(callbackUrl)
